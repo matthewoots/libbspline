@@ -43,14 +43,16 @@ kn_seg = 5; % Division of 1 span or 1 segment
 numrange = 12; % range for evaluation
 pva = 'pva'; % p for pos, pv for pos and vel, pva for pos, vel, acc
 
-for x=1:axis
-    r = rand(1,6);
-    ctrlpt(x,:) = numrange * r; % multiply the random [0-1] by the number range
-end
+% for x=1:axis
+%     r = rand(1,6);
+%     ctrlpt(x,:) = numrange * r; % multiply the random [0-1] by the number range
+% end
+% 
+% for x=1:order
+%     ctrlpt = [ctrlpt(:,1) ctrlpt ctrlpt(:,end)];
+% end
 
-for x=1:order
-    ctrlpt = [ctrlpt(:,1) ctrlpt ctrlpt(:,end)];
-end
+load('test_ctrlpt.mat');
 
 k = order + 1;
 if strcmp(pva,'pva')

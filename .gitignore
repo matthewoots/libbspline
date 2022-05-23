@@ -33,3 +33,9 @@
 
 # MATLAB
 *.asv
+
+# Build folder
+cpp/build/*
+
+# vscode
+*.vscode
