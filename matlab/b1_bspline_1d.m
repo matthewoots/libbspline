@@ -52,7 +52,7 @@ pva = 'pva'; % p for pos, pv for pos and vel, pva for pos, vel, acc
 %     ctrlpt = [ctrlpt(:,1) ctrlpt ctrlpt(:,end)];
 % end
 
-load('test_ctrlpt.mat');
+load('test_ctrlpt_1d.mat');
 
 k = order + 1;
 if strcmp(pva,'pva')

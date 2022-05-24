@@ -20,17 +20,19 @@ make test
 Where the CTest output in the console should be as follows
 ```bash
 Running tests...
-Test project <libbspline directory>/cpp/build
+Test project /home/nvidia/libbspline/cpp/build
     Start 1: m_matrix
-1/3 Test #1: m_matrix .........................   Passed    0.00 sec
+1/4 Test #1: m_matrix .........................   Passed    0.00 sec
     Start 2: txt_reader
-2/3 Test #2: txt_reader .......................   Passed    0.00 sec
+2/4 Test #2: txt_reader .......................   Passed    0.00 sec
     Start 3: 1d_bspline
-3/3 Test #3: 1d_bspline .......................   Passed    0.00 sec
+3/4 Test #3: 1d_bspline .......................   Passed    0.00 sec
+    Start 4: 3d_bspline
+4/4 Test #4: 3d_bspline .......................   Passed    0.00 sec
 
-100% tests passed, 0 tests failed out of 3
+100% tests passed, 0 tests failed out of 4
 
-Total Test time (real) =   0.00 sec
+Total Test time (real) =   0.01 sec
 ```
 
 #### Include in other projects:

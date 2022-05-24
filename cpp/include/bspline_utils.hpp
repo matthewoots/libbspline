@@ -14,9 +14,6 @@
 *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *  GNU General Public License for more details.
 * ---------------------------------------------------------------------
-*
-* 
-* 
 */
 
 #ifndef BSPLINE_UTILS_H
@@ -32,8 +29,112 @@ using namespace std;
 
 namespace trajectory
 {
+    class trajectory_math_fn
+    {
+        public:
+
+        /** @brief linspace function with given min and max **/
+        inline vector<double> linspace(
+            double min, double max, double n)
+        {
+            vector<double> linspaced;
+            double delta = (max - min) / (n - 1.0);
+            linspaced.push_back(min);
+            
+            for (int i = 1; i < (int)n; i++)
+            {
+                linspaced.push_back(linspaced[i-1] + delta);
+            }
+
+            return linspaced;
+        }
+    };
+
+    class common_trajectory_tool
+    {
+        private:
+
+        trajectory_math_fn tmf;
+
+        public:
+
+        /** @brief Uniform Distribution */
+        inline vector<Eigen::Vector3d> uniform_distribution(
+            Eigen::Vector3d start, vector<Eigen::Vector3d> wp, 
+            double max_vel, double knot_span)
+        {
+            vector<Eigen::Vector3d> keypoints;
+            keypoints.push_back(start);
+            for (int j = 0; j < (int)wp.size(); j++)
+                keypoints.push_back(wp[j]);
+            
+            vector<double> diff;
+            vector<double> segment;
+            double total_dist = 0;
+            // Until cp_tmp.cols() - order - 1 since that is the last change in a clamped spline
+            // But will be different for non-clamped splines 
+            for (int j = 0; j < (int)wp.size(); j++)
+            {
+                Eigen::Vector3d diff_tmp = keypoints[j+1] - keypoints[j];
+                diff.push_back(
+                    sqrt(pow(diff_tmp[0],2) + 
+                    pow(diff_tmp[1],2) + 
+                    pow(diff_tmp[2],2)));
+                total_dist =+ diff[j];
+            }
+
+            double est_dist_knot = max_vel * knot_span;
+
+            vector<double> time_waypoint;
+            double total_segment = 0;
+            for (int j = 0; j < (int)diff.size(); j++)
+            {
+                // ceil helps to push values above 0 to 1 or more
+                // or else segment count is 0 and causes an error
+                double knot_in_seg_count = ceil(diff[j]/est_dist_knot);
+                total_segment += knot_in_seg_count;
+                
+                segment.push_back(knot_in_seg_count);
+                time_waypoint.push_back(total_segment * knot_span);
+            }
+            
+            // Raw control points
+            // total_segment + 1 is the total count since + 1 refers to the last missing point after linspace
+            vector<Vector3d> cp;
+            cp.reserve(total_segment + 1);
+            for (int j = 0; j < total_segment + 1; j++)
+                cp.push_back(Eigen::Vector3d::Zero());
+
+            for (int i = 0; i < 3; i++)
+            {
+                double segment_counter = 0;
+                for (int j = 0; j < (int)wp.size(); j++)
+                {
+                    double div = segment[j] + 1.0;
+                    
+                    vector<double> sub_cp_tmp = 
+                        tmf.linspace(keypoints[j](i), keypoints[j+1](i), div);
+
+                    for (int k = 0; k < segment[j]; k++)
+                    {
+                        cp[k + segment_counter](i) = sub_cp_tmp[k];
+                    }
+                    segment_counter += segment[j];
+                }
+                cp[segment_counter](i) = 
+                    keypoints[keypoints.size()-1](i);
+            }
+
+            return cp;
+        }
+
+    };
+
     class bspline_trajectory
     {
+        private:
+
+        trajectory_math_fn tmf;
         
         /*
         * General matrix representations for B-splines See Theorem 1 of page 182 for getting M
@@ -51,20 +152,73 @@ namespace trajectory
             vector<int> r; // Vector of control points that we have to consider
         };
 
-        struct bs_pva_state
+        struct bs_pva_state_1d
         {
             vector<double> rts; // Relative time span 
-            vector<double> pos; // Position vector
-            vector<double> vel; // Velocity vector
-            vector<double> acc; // Acceleration vector
+            vector<double> pos; // Position vector 1d
+            vector<double> vel; // Velocity vector 1d
+            vector<double> acc; // Acceleration vector 1d
         };
+
+        struct bs_pva_state_3d
+        {
+            vector<double> rts; // Relative time span 
+            vector<Eigen::Vector3d> pos; // Position vector 3d
+            vector<Eigen::Vector3d> vel; // Velocity vector 3d
+            vector<Eigen::Vector3d> acc; // Acceleration vector 3d
+        };
+
+        inline bs_pva_state_3d get_uni_bspline_3d(
+            int order, vector<double> timespan, 
+            vector<Vector3d> ctrlpt3, int knotdiv)
+        {
+            // Assign the control point data into row vectors
+            vector<vector<double>> ctrlpt;
+            for (int i = 0; i < 3; i++)
+            {
+                vector<double> axis_seperation;
+                for (int j = 0; j < (int)ctrlpt3.size(); j++)
+                {
+                    axis_seperation.push_back(ctrlpt3[j](i));
+                }
+                ctrlpt.push_back(axis_seperation);
+            }
+
+            vector<bs_pva_state_1d> s1;
+            // Pass the row vectors into the 1d bspline creation
+            for (int i = 0; i < 3; i++)
+                s1.push_back(get_uni_bspline_1d(order, timespan, ctrlpt[i], knotdiv));
+
+            // Reassemble from row vectors into Vector3d columns
+            bs_pva_state_3d s3;
+            s3.rts = s1[0].rts;
+            int total_array_size = s1[0].rts.size();
+            for (int i = 0; i < total_array_size; i++)
+            {
+                Eigen::Vector3d pos_vect = Eigen::Vector3d::Zero();
+                Eigen::Vector3d vel_vect = Eigen::Vector3d::Zero();
+                Eigen::Vector3d acc_vect = Eigen::Vector3d::Zero();
+                for (int j = 0; j < 3; j++)
+                {
+                    pos_vect(j) = s1[j].pos[i];
+                    vel_vect(j) = s1[j].vel[i];
+                    acc_vect(j) = s1[j].acc[i];
+                }
+                s3.pos.push_back(pos_vect);
+                s3.vel.push_back(vel_vect);
+                s3.acc.push_back(acc_vect);
+            }
+
+            return s3;
+        };
+
         
-        inline bs_pva_state get_uni_bspline_1d(
+        inline bs_pva_state_1d get_uni_bspline_1d(
             int order, vector<double> timespan, 
             vector<double> ctrlpt, int knotdiv)
         {
             bs_utils b;
-            bs_pva_state s;
+            bs_pva_state_1d s;
             b.k = order + 1;
             b.M = create_m(order);
             b.k_d = knotdiv;
@@ -76,7 +230,7 @@ namespace trajectory
             b.r = int_range_to_vector(order, m - order - 1); 
 
             b.dt = (timespan[1] - timespan[0]) / (b.r.size());
-            vector<double> t = linspace(timespan[0], timespan[1], b.r.size() + 1);
+            vector<double> t = tmf.linspace(timespan[0], timespan[1], b.r.size() + 1);
 
             // since we know the size of the vector we should reserve first
             int vector_final_size = b.r.size() * (b.k_d-1);
@@ -92,9 +246,9 @@ namespace trajectory
                 int nxt_idx = idx + 1;
 
                 // Relative to the start time as 0 regardless of the time 
-                vector<double> span = linspace((double)idx, (double)nxt_idx, b.k_d); 
+                vector<double> span = tmf.linspace((double)idx, (double)nxt_idx, b.k_d); 
                 // Time in abs time (simulation time / given time)
-                vector<double> actualspan = linspace(t[i], t[i+1], b.k_d); 
+                vector<double> actualspan = tmf.linspace(t[i], t[i+1], b.k_d); 
 
                 // Control Points in a Span Column vector
                 Eigen::VectorXd p = Eigen::VectorXd::Zero(b.k);
@@ -187,22 +341,6 @@ namespace trajectory
                 factorial = factorial * (double)i;
             }
             return factorial;
-        }
-
-        /** @brief linspace function with given min and max **/
-        inline vector<double> linspace(
-            double min, double max, double n)
-        {
-            vector<double> linspaced;
-            double delta = (max - min) / (n - 1.0);
-            linspaced.push_back(min);
-            
-            for (int i = 1; i < (int)n; i++)
-            {
-                linspaced.push_back(linspaced[i-1] + delta);
-            }
-
-            return linspaced;
         }
 
         /** @brief 

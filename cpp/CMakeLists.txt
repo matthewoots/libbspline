@@ -27,6 +27,16 @@ add_test(1d_bspline 1d_bspline
   ${CMAKE_SOURCE_DIR}/data/velocity.txt
   ${CMAKE_SOURCE_DIR}/data/time.txt)
 
+add_executable(3d_bspline test/3d_bspline.cpp)
+add_test(3d_bspline 3d_bspline 
+  ${CMAKE_SOURCE_DIR}/data/cpx.txt
+  ${CMAKE_SOURCE_DIR}/data/cpy.txt
+  ${CMAKE_SOURCE_DIR}/data/cpz.txt
+  ${CMAKE_SOURCE_DIR}/data/posx.txt
+  ${CMAKE_SOURCE_DIR}/data/posy.txt
+  ${CMAKE_SOURCE_DIR}/data/posz.txt
+  ${CMAKE_SOURCE_DIR}/data/time.txt)
+
 install(FILES "${PROJECT_NAME}Config.cmake" "${PROJECT_NAME}ConfigVersion.cmake"
   DESTINATION "share/${PROJECT_NAME}/cmake")
 

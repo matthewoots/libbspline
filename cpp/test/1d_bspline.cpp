@@ -17,7 +17,7 @@ using namespace trajectory;
 int main(int argc, char **argv) 
 {
     bspline_trajectory bt;
-    bspline_trajectory::bs_pva_state state;
+    bspline_trajectory::bs_pva_state_1d state;
 
     if (argc != 5) {
         printf("Input txt file required!\n");
