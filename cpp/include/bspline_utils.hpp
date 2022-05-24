@@ -168,6 +168,53 @@ namespace trajectory
             vector<Eigen::Vector3d> acc; // Acceleration vector 3d
         };
 
+        struct overlap_data
+        {
+            vector<double> time_span; // Relative time span start and end
+            vector<Eigen::Vector3d> wp_overlap; // Overlap of the waypoints that we want to bring over
+            int fill_remaining; 
+        };
+
+        /** @brief Get the dt of the knots (knot span) */
+        inline double get_dt(
+            vector<Vector3d> cp, int order, vector<double> timespan)
+        {
+            int n = cp.size() - 1;
+            int m = n + order + 1;
+            // Number of used control points for 1 segment
+            int interval = (m - order) - (order + 1) + 1; 
+            return (timespan[1] - timespan[0]) / interval;
+        }
+
+        /** @brief Find the overlapping data that we have and we need to fill */
+        inline overlap_data find_overlap_data(
+            vector<Eigen::Vector3d> cp, int order, 
+            vector<double> timespan, double relative_current_time)
+        {
+            overlap_data od;
+            
+            double dt = get_dt(cp, order, timespan);
+            double difference = relative_current_time - timespan[0];
+            double overlap_count = floor(difference / dt);
+            
+            // If I'm currently between my next segment and current segment
+            // This means that I should not touch this segment and consider the next segment
+            // to the next next segment
+            int add_1 = ((difference / dt) - overlap_count >= 0) ? 1 : 0;
+            double wp_overlap_value = (overlap_count + add_1);
+
+            od.time_span.push_back(dt * wp_overlap_value + timespan[0]);
+            od.time_span.push_back(dt * wp_overlap_value + timespan[1]);
+            
+            for (int i = 0; i < order; i++)
+                od.wp_overlap.push_back(cp[overlap_count]);
+            
+            od.fill_remaining = (int)cp.size() - order;
+
+            return od;
+        }
+
+        /** @brief Create the pva state of a 3d bspline **/
         inline bs_pva_state_3d get_uni_bspline_3d(
             int order, vector<double> timespan, 
             vector<Vector3d> ctrlpt3, int knotdiv)
@@ -212,7 +259,7 @@ namespace trajectory
             return s3;
         };
 
-        
+        /** @brief Create the pva state of a 1d bspline **/
         inline bs_pva_state_1d get_uni_bspline_1d(
             int order, vector<double> timespan, 
             vector<double> ctrlpt, int knotdiv)
