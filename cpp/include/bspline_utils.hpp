@@ -20,12 +20,23 @@
 #define BSPLINE_UTILS_H
 
 #include <string>
+#include <chrono>
 #include <cmath>
 #include <vector>
 #include <Eigen/Dense>
 
+#define KNRM  "\033[0m"
+#define KRED  "\033[31m"
+#define KGRN  "\033[32m"
+#define KYEL  "\033[33m"
+#define KBLU  "\033[34m"
+#define KMAG  "\033[35m"
+#define KCYN  "\033[36m"
+#define KWHT  "\033[37m"
+
 using namespace Eigen;
 using namespace std;
+using namespace std::chrono;
 
 namespace trajectory
 {
@@ -186,6 +197,33 @@ namespace trajectory
             return (timespan[1] - timespan[0]) / interval;
         }
 
+        /** @brief Get the valid cp size */
+        inline int get_valid_cp_size(
+            double knot_dt, int order, vector<double> timespan)
+        {
+            // knot_dt is the knot_interval
+            int interval = (timespan[1] - timespan[0]) / knot_dt;
+            int m = interval + (order + 1) - 1 + order; 
+            int n = m - order - 1;
+            int cp_size = n + 1;
+            return cp_size;
+        }
+
+        /** @brief Get size of the knots */
+        inline int get_knots_size(
+            double dt, double duration, int knot_div)
+        {
+            double total_segments = duration / dt;
+            return (int)floor(total_segments / (double)knot_div);
+        }
+
+        /** @brief Get corrected duration to match our intervals */
+        inline double get_corrected_duration(
+            double dt, double duration)
+        {
+            return floor(duration / dt) * dt;
+        }
+
         /** @brief Find the overlapping data that we have and we need to fill */
         inline overlap_data find_overlap_data(
             vector<Eigen::Vector3d> cp, int order, 
@@ -219,6 +257,8 @@ namespace trajectory
             int order, vector<double> timespan, 
             vector<Vector3d> ctrlpt3, int knotdiv)
         {
+            time_point<std::chrono::system_clock> start_ass = system_clock::now();
+
             // Assign the control point data into row vectors
             vector<vector<double>> ctrlpt;
             for (int i = 0; i < 3; i++)
@@ -231,11 +271,17 @@ namespace trajectory
                 ctrlpt.push_back(axis_seperation);
             }
 
+            auto test_time_diff_ass = duration<double>(system_clock::now() - start_ass).count();
+            std::cout << "[bs_utils]" << " test 3d_bspline assembly: " <<
+                KGRN << test_time_diff_ass << KNRM << "s" << std::endl;
+
             vector<bs_pva_state_1d> s1;
             // Pass the row vectors into the 1d bspline creation
             for (int i = 0; i < 3; i++)
                 s1.push_back(get_uni_bspline_1d(order, timespan, ctrlpt[i], knotdiv));
 
+
+            time_point<std::chrono::system_clock> start_rass = system_clock::now();
             // Reassemble from row vectors into Vector3d columns
             bs_pva_state_3d s3;
             s3.rts = s1[0].rts;
@@ -256,6 +302,10 @@ namespace trajectory
                 s3.acc.push_back(acc_vect);
             }
 
+            auto test_time_diff_rass = duration<double>(system_clock::now() - start_rass).count();
+            std::cout << "[bs_utils]" <<  " test 3d_bspline reassembly: " <<
+                KGRN << test_time_diff_rass << KNRM << "s" << std::endl;
+
             return s3;
         };
 
@@ -264,6 +314,8 @@ namespace trajectory
             int order, vector<double> timespan, 
             vector<double> ctrlpt, int knotdiv)
         {
+            time_point<std::chrono::system_clock> start = system_clock::now();
+
             bs_utils b;
             bs_pva_state_1d s;
             b.k = order + 1;
@@ -318,19 +370,23 @@ namespace trajectory
                         p(l) = ctrlpt[idx + l];
                         if (l >= 1)
                             du(l) = (l) * pow(u_t, l-1);
-                        if (l >= 2)
-                            ddu(l) = (l) * (l-1) * pow(u_t, l-2);
+                        // if (l >= 2)
+                        //     ddu(l) = (l) * (l-1) * pow(u_t, l-2);
                     }
 
                     s.pos.push_back(
                         position_at_time_segment(b.dt, b.M, u, p));
                     s.vel.push_back(
                         velocity_at_time_segment(b.dt, b.M, du, p));
-                    s.acc.push_back(
-                        acceleration_at_time_segment(b.dt, b.M, ddu, p));
+                    // s.acc.push_back(
+                    //     acceleration_at_time_segment(b.dt, b.M, ddu, p));
                     s.rts.push_back(actualspan[j]);
                 }
             }
+
+            auto test_time_diff = duration<double>(system_clock::now() - start).count();
+            std::cout << "[bs_utils]" << " test 1d_bspline: " << 
+                KGRN << test_time_diff << KNRM << "s" << std::endl;
 
             return s;
 
