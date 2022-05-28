@@ -9,10 +9,14 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wno-deprecated-declara
 
 set(BUILD_SHARED_LIBS ON)
 
+file(GLOB INCLUDE_FILES "include/*.h")
+
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIRS} include)
 
 include(CTest)
+
+add_library(${PROJECT_NAME} STATIC ${SRC_FILES} ${INCLUDE_FILES})
 
 add_executable(m_matrix test/m_matrix.cpp)
 add_test(m_matrix m_matrix)
@@ -36,3 +40,6 @@ add_test(3d_bspline 3d_bspline
   ${CMAKE_SOURCE_DIR}/data/posy.txt
   ${CMAKE_SOURCE_DIR}/data/posz.txt
   ${CMAKE_SOURCE_DIR}/data/time.txt)
+
+target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
+target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/..)
