@@ -7,7 +7,7 @@
 using namespace trajectory;
 
 /**
- * @brief 3d bspline test case
+ * @brief 3d single bspline test case
  * 
  * In MATLAB
  * Use dlmwrite('XX.txt', variable_vector, 'delimiter','\t','newline','pc')
@@ -55,37 +55,41 @@ int main(int argc, char **argv)
     timespan.push_back(0.0);
     timespan.push_back(1.0);
 
-    int knotdiv = 5;
+    int random_index = 20;
+    double query_time = time[random_index-1];
+
+    std::cout << "[3d_bspline_single]" <<
+            " query_time: " << std::endl <<
+            KBLU << query_time << KNRM << std::endl;
+
     int order = 5;
 
     time_point<std::chrono::system_clock> start = system_clock::now();
 
-    state = bt.get_uni_bspline_3d(order, timespan, ctrlpt, knotdiv);
+    state = bt.get_single_bspline_3d(order, timespan, ctrlpt, query_time);
 
     auto test_time_diff = duration<double>(system_clock::now() - start).count();
-    std::cout << "[3d_bspline]" << 
-        " time for 3d_bspline: " << 
+    std::cout << "[3d_bspline_single]" << 
+        " time for 3d_bspline_single: " << 
         KGRN << test_time_diff*1000 << KNRM << "ms" << std::endl;
+
+    std::cout << "[3d_bspline_single]" <<
+            " state.pos[0]: " << std::endl <<
+            KBLU << state.pos[0] << KNRM << std::endl;
+    
+    std::cout << "[3d_bspline_single]" <<
+            " check_pos[random_index-1]: " << std::endl <<
+            KBLU << check_pos[random_index-1] << KNRM << std::endl;
 
     if (state.pos.empty())
         return -1;
 
-    // The output from matlab to txt is inconsistent so we will just use 3dp as the standard
-    for (int i = 0; i < (int)state.pos.size(); i++)
-    {
-        if (abs(state.pos[i](0) - check_pos[i](0)) > 0.001)
-            return -1;
-        if (abs(state.pos[i](1) - check_pos[i](1)) > 0.001)
-            return -1;
-        if (abs(state.pos[i](2) - check_pos[i](2)) > 0.001)
-            return -1;
-    }
-
-    for (int i = 0; i < (int)state.rts.size(); i++)
-    {
-        if (abs(state.rts[i] - time[i]) > 0.001)
-            return -1;
-    }
+    if (abs(state.pos[0](0) - check_pos[random_index-1](0)) > 0.001)
+        return -1;
+    if (abs(state.pos[0](1) - check_pos[random_index-1](1)) > 0.001)
+        return -1;
+    if (abs(state.pos[0](2) - check_pos[random_index-1](2)) > 0.001)
+        return -1;
 
     std::cout << KGRN << "Success" << KNRM << std::endl;
 

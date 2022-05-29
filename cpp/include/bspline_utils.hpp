@@ -81,7 +81,7 @@ namespace trajectory
             
             vector<double> diff;
             vector<double> segment;
-            double total_dist = 0;
+            // double total_dist = 0;
             // Until cp_tmp.cols() - order - 1 since that is the last change in a clamped spline
             // But will be different for non-clamped splines 
             for (int j = 0; j < (int)wp.size(); j++)
@@ -91,7 +91,7 @@ namespace trajectory
                     sqrt(pow(diff_tmp[0],2) + 
                     pow(diff_tmp[1],2) + 
                     pow(diff_tmp[2],2)));
-                total_dist =+ diff[j];
+                // total_dist =+ diff[j];
             }
 
             double est_dist_knot = max_vel * knot_span;
@@ -252,13 +252,11 @@ namespace trajectory
             return od;
         }
 
-        /** @brief Create the pva state of a 3d bspline **/
-        inline bs_pva_state_3d get_uni_bspline_3d(
+        /** @brief Create the pva single state of a 3d bspline **/
+        inline bs_pva_state_3d get_single_bspline_3d(
             int order, vector<double> timespan, 
-            vector<Vector3d> ctrlpt3, int knotdiv)
+            vector<Vector3d> ctrlpt3, double query_time)
         {
-            time_point<std::chrono::system_clock> start_ass = system_clock::now();
-
             // Assign the control point data into row vectors
             vector<vector<double>> ctrlpt;
             for (int i = 0; i < 3; i++)
@@ -271,18 +269,130 @@ namespace trajectory
                 ctrlpt.push_back(axis_seperation);
             }
 
-            auto test_time_diff_ass = duration<double>(system_clock::now() - start_ass).count();
-            std::cout << "[bs_utils]" << " test 3d_bspline assembly: " <<
-                KGRN << test_time_diff_ass << KNRM << "s" << std::endl;
+            vector<bs_pva_state_1d> s1;
+            // Pass the row vectors into the 1d bspline creation
+            for (int i = 0; i < 3; i++)
+                s1.push_back(get_single_bspline_1d(
+                    order, timespan, ctrlpt[i], query_time));
+
+
+            // Reassemble from row vectors into Vector3d columns
+            bs_pva_state_3d s3;
+
+            Eigen::Vector3d pos_vect = Eigen::Vector3d::Zero();
+            Eigen::Vector3d vel_vect = Eigen::Vector3d::Zero();
+            Eigen::Vector3d acc_vect = Eigen::Vector3d::Zero();
+            for (int j = 0; j < 3; j++)
+            {
+                pos_vect(j) = s1[j].pos[0];
+                vel_vect(j) = s1[j].vel[0];
+                acc_vect(j) = s1[j].acc[0];
+            }
+            s3.pos.push_back(pos_vect);
+            s3.vel.push_back(vel_vect);
+            s3.acc.push_back(acc_vect);
+
+            return s3;
+        };
+
+        /** @brief Create the pva single state of a 1d bspline **/
+        inline bs_pva_state_1d get_single_bspline_1d(
+            int order, vector<double> timespan, 
+            vector<double> ctrlpt, double query_time)
+        {
+            time_point<std::chrono::system_clock> start = system_clock::now();
+
+            bs_utils b;
+            bs_pva_state_1d s;
+            b.k = order + 1;
+            b.M = create_m(order);
+            int n = (int)ctrlpt.size() - 1;
+            int m = n + order + 1; 
+            // int n_k = m + 1; // Number of knots
+
+            // Range of index to evaluate accordingly (order to length of control points)
+            b.r = int_range_to_vector(order, m - order - 1); 
+
+            b.dt = (timespan[1] - timespan[0]) / (b.r.size());
+            vector<double> t = tmf.linspace(timespan[0], timespan[1], b.r.size() + 1);
+
+            for (int i = 0; i < (int)b.r.size(); i++)
+            {
+                // Evaluate from the current idx to next idx
+                int idx = b.r[i] - order;
+
+                if (!(query_time >= t[i] && query_time < t[i+1]))
+                    continue;
+
+                // Relative to the start time as 0 regardless of the time 
+                double span = idx + (query_time - t[i]) / (t[i+1]-t[i]);
+
+                // Control Points in a Span Column vector
+                Eigen::VectorXd p = Eigen::VectorXd::Zero(b.k);
+                // Position Row Vector, Velocity Row Vector, Acceleration Row Vector, Snap Row Vector
+                Eigen::RowVectorXd u, du, ddu;
+                u = du = ddu = Eigen::RowVectorXd::Zero(b.k); 
+
+                // We are only considering [0,1) hence not including 1
+                // current time in index form, of course we dont like to play with conversion
+                double time = span; 
+                // using index is the same as using time since u_t is a factor
+                double u_t = (time - idx)/((idx+1) - idx); 
+
+                // Make the u, du, ddu and p matrix
+                for (int l = 0; l < b.k; l++)
+                {
+                    u(l) = pow(u_t, l);
+                    p(l) = ctrlpt[idx + l];
+                    if (l >= 1)
+                        du(l) = (l) * pow(u_t, l-1);
+                    if (l >= 2)
+                        ddu(l) = (l) * (l-1) * pow(u_t, l-2);
+                }
+
+                s.pos.push_back(
+                    position_at_time_segment(b.dt, b.M, u, p));
+                s.vel.push_back(
+                    velocity_at_time_segment(b.dt, b.M, du, p));
+                s.acc.push_back(
+                    acceleration_at_time_segment(b.dt, b.M, ddu, p));
+                s.rts.push_back(query_time);
+
+                break;
+            }
+
+            auto test_time_diff = duration<double>(system_clock::now() - start).count();
+            std::cout << "[bs_utils]" << 
+                " test single_1d_bspline: " << 
+                KGRN << test_time_diff << KNRM << "s" << std::endl;
+
+            return s;
+
+        }
+
+        /** @brief Create the pva multiple state (path) of a 3d bspline **/
+        inline bs_pva_state_3d get_uni_bspline_3d(
+            int order, vector<double> timespan, 
+            vector<Vector3d> ctrlpt3, int knotdiv)
+        {
+            // Assign the control point data into row vectors
+            vector<vector<double>> ctrlpt;
+            for (int i = 0; i < 3; i++)
+            {
+                vector<double> axis_seperation;
+                for (int j = 0; j < (int)ctrlpt3.size(); j++)
+                {
+                    axis_seperation.push_back(ctrlpt3[j](i));
+                }
+                ctrlpt.push_back(axis_seperation);
+            }
 
             vector<bs_pva_state_1d> s1;
             // Pass the row vectors into the 1d bspline creation
             for (int i = 0; i < 3; i++)
                 s1.push_back(get_uni_bspline_1d(order, timespan, ctrlpt[i], knotdiv));
 
-
-            time_point<std::chrono::system_clock> start_rass = system_clock::now();
-            // Reassemble from row vectors into Vector3d columns
+           // Reassemble from row vectors into Vector3d columns
             bs_pva_state_3d s3;
             s3.rts = s1[0].rts;
             int total_array_size = s1[0].rts.size();
@@ -302,14 +412,10 @@ namespace trajectory
                 s3.acc.push_back(acc_vect);
             }
 
-            auto test_time_diff_rass = duration<double>(system_clock::now() - start_rass).count();
-            std::cout << "[bs_utils]" <<  " test 3d_bspline reassembly: " <<
-                KGRN << test_time_diff_rass << KNRM << "s" << std::endl;
-
             return s3;
         };
 
-        /** @brief Create the pva state of a 1d bspline **/
+        /** @brief Create the pva multiple state (path) of a 1d bspline **/
         inline bs_pva_state_1d get_uni_bspline_1d(
             int order, vector<double> timespan, 
             vector<double> ctrlpt, int knotdiv)
@@ -385,7 +491,8 @@ namespace trajectory
             }
 
             auto test_time_diff = duration<double>(system_clock::now() - start).count();
-            std::cout << "[bs_utils]" << " test 1d_bspline: " << 
+            std::cout << "[bs_utils]" <<
+                " test 1d_bspline: " << 
                 KGRN << test_time_diff << KNRM << "s" << std::endl;
 
             return s;

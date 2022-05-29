@@ -42,17 +42,17 @@ int main(int argc, char **argv)
     // The output from matlab to txt is inconsistent so we will just use 3dp as the standard
     for (int i = 0; i < (int)state.pos.size(); i++)
     {
-        if (state.pos[i] - pos[i] > 0.001)
+        if (abs(state.pos[i] - pos[i]) > 0.001)
             return -1;
     }
     for (int i = 0; i < (int)state.vel.size(); i++)
     {
-        if (state.vel[i] - vel[i] > 0.001)
+        if (abs(state.vel[i] - vel[i]) > 0.001)
             return -1;
     }
     for (int i = 0; i < (int)state.rts.size(); i++)
     {
-        if (state.rts[i] - time[i] > 0.001)
+        if (abs(state.rts[i] - time[i]) > 0.001)
             return -1;
     }
 

@@ -16,7 +16,7 @@ include_directories(${EIGEN3_INCLUDE_DIRS} include)
 
 include(CTest)
 
-add_library(${PROJECT_NAME} STATIC ${SRC_FILES} ${INCLUDE_FILES})
+# add_library(${PROJECT_NAME} STATIC ${SRC_FILES} ${INCLUDE_FILES})
 
 add_executable(m_matrix test/m_matrix.cpp)
 add_test(m_matrix m_matrix)
@@ -41,5 +41,15 @@ add_test(3d_bspline 3d_bspline
   ${CMAKE_SOURCE_DIR}/data/posz.txt
   ${CMAKE_SOURCE_DIR}/data/time.txt)
 
-target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
-target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/..)
+  add_executable(3d_bspline_single test/3d_bspline_single.cpp)
+  add_test(3d_bspline_single 3d_bspline_single 
+    ${CMAKE_SOURCE_DIR}/data/cpx.txt
+    ${CMAKE_SOURCE_DIR}/data/cpy.txt
+    ${CMAKE_SOURCE_DIR}/data/cpz.txt
+    ${CMAKE_SOURCE_DIR}/data/posx.txt
+    ${CMAKE_SOURCE_DIR}/data/posy.txt
+    ${CMAKE_SOURCE_DIR}/data/posz.txt
+    ${CMAKE_SOURCE_DIR}/data/time.txt)
+
+# target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
+# target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/..)
