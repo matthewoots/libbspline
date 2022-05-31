@@ -69,19 +69,18 @@ namespace trajectory
 
         public:
 
-        /** @brief Uniform Distribution */
-        inline vector<Eigen::Vector3d> uniform_distribution(
-            Eigen::Vector3d start, vector<Eigen::Vector3d> wp, 
+        /** @brief Uniform Distribution of control points*/
+        inline vector<Eigen::Vector3d> uniform_distribution_of_cp(
+            Eigen::Vector3d current_cp, vector<Eigen::Vector3d> wp, 
             double max_vel, double knot_span)
         {
             vector<Eigen::Vector3d> keypoints;
-            keypoints.push_back(start);
+            keypoints.push_back(current_cp);
             for (int j = 0; j < (int)wp.size(); j++)
                 keypoints.push_back(wp[j]);
             
             vector<double> diff;
             vector<double> segment;
-            // double total_dist = 0;
             // Until cp_tmp.cols() - order - 1 since that is the last change in a clamped spline
             // But will be different for non-clamped splines 
             for (int j = 0; j < (int)wp.size(); j++)
@@ -91,7 +90,6 @@ namespace trajectory
                     sqrt(pow(diff_tmp[0],2) + 
                     pow(diff_tmp[1],2) + 
                     pow(diff_tmp[2],2)));
-                // total_dist =+ diff[j];
             }
 
             double est_dist_knot = max_vel * knot_span;
@@ -188,9 +186,9 @@ namespace trajectory
 
         /** @brief Get the dt of the knots (knot span) */
         inline double get_dt(
-            vector<Vector3d> cp, int order, vector<double> timespan)
+            int acceptable_cp_size, int order, vector<double> timespan)
         {
-            int n = cp.size() - 1;
+            int n = acceptable_cp_size - 1;
             int m = n + order + 1;
             // Number of used control points for 1 segment
             int interval = (m - order) - (order + 1) + 1; 
@@ -231,7 +229,7 @@ namespace trajectory
         {
             overlap_data od;
             
-            double dt = get_dt(cp, order, timespan);
+            double dt = get_dt((int)cp.size(), order, timespan);
             double difference = relative_current_time - timespan[0];
             double overlap_count = floor(difference / dt);
             
