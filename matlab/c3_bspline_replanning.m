@@ -55,6 +55,8 @@ for x=1:order
     ctrlpt1 = [ctrlpt1(:,1) ctrlpt1];
 end
 
+% load('test_conc_ctrlpt_3d.mat','ctrlpt1','ctrlpt2','timespan2');
+
 n = length(ctrlpt1) - 1;
 m = n + order + 1;
 % Number of used control points for 1 segment
@@ -87,15 +89,16 @@ end
 tt1 = time;
 
 %% 2nd curve
-overlap = 4;
-timespan2 = [timespan1(1) + overlap * dt, timespan1(2) + overlap * dt];
-overlap_size = length(ctrlpt1) - (overlap);
+overlap = 0;
+cp_used = order + 2;
+timespan2 = [timespan1(1) + (cp_used-order) * dt, timespan1(2) + (cp_used-order) * dt];
+% overlap_size = length(ctrlpt1) - (overlap-order);
 for x=1:axis
-    r = rand(1,(points+order)-order);
+    r = rand(1,(points+order)-order-overlap);
     ctrlpt2(x,:) = numrange * r; % multiply the random [0-1] by the number range
 end
 
-ctrlpt2 = [ctrlpt1(:,overlap+1:overlap+order) ctrlpt2];
+ctrlpt2 = [ctrlpt1(:,cp_used-order+1:cp_used+overlap) ctrlpt2];
 
 
 for x=1:axis
