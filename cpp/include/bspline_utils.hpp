@@ -360,9 +360,9 @@ namespace trajectory
             }
 
             auto test_time_diff = duration<double>(system_clock::now() - start).count();
-            std::cout << "[bs_utils]" << 
-                " test single_1d_bspline: " << 
-                KGRN << test_time_diff << KNRM << "s" << std::endl;
+            // std::cout << "[bs_utils]" << 
+            //     " test single_1d_bspline: " << 
+            //     KGRN << test_time_diff << KNRM << "s" << std::endl;
 
             return s;
 
