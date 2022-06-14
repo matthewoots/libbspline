@@ -100,7 +100,7 @@ namespace trajectory
             {
                 // ceil helps to push values above 0 to 1 or more
                 // or else segment count is 0 and causes an error
-                double knot_in_seg_count = ceil(diff[j]/est_dist_knot);
+                double knot_in_seg_count = ceil(diff[j]/est_dist_knot) + 1;
                 total_segment += knot_in_seg_count;
                 
                 segment.push_back(knot_in_seg_count);
